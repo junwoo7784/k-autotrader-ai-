@@ -5,7 +5,7 @@ $('load').onclick=async()=>{
   $('run').disabled=true;
   $('status').textContent='서버에서 실제 과거 주가를 불러오는 중...';
   try{
-    const url='/.netlify/functions/prices?code='+encodeURIComponent($('code').value);
+    const url='/api/prices?code='+encodeURIComponent($('code').value);
     const r=await fetch(url);
     const d=await r.json();
     if(!r.ok)throw Error(d.error||'서버 오류');
