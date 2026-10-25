@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101828">
+<title>K-AutoTrader AI v0.6</title>
+<style>
+body{margin:0;background:#0b1220;color:#e9f0fc;font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif}main{max-width:650px;margin:auto;padding:24px 17px 70px}.card{background:#172338;border:1px solid #2d405b;border-radius:17px;padding:18px;margin:14px 0}h1{font-size:24px;margin:0 0 5px}h2{font-size:17px;margin:0 0 14px}small,.muted{color:#a8b7ce}button,select{font:inherit;border-radius:10px;padding:12px;border:1px solid #4b6586;background:#243652;color:white}button{cursor:pointer}button.primary{background:#3885ed;border:0;font-weight:700}button:disabled{opacity:.5}.buttons{display:flex;flex-wrap:wrap;gap:9px}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px}.metric{background:#101c2d;border-radius:10px;padding:12px}.metric b{display:block;margin-top:7px;font-size:19px}table{width:100%;border-collapse:collapse;font-size:12px}td,th{padding:9px 5px;border-bottom:1px solid #314158;text-align:right}td:first-child,th:first-child{text-align:left}#status{line-height:1.6}.warn{color:#ffd18a}
+</style>
+</head>
+<body><main>
+<h1>K-AutoTrader AI <small>v0.6</small></h1><p class="muted">실제 과거 주가 · 모의매매 전용 · 실제 주문 불가</p>
+<div class="card"><h2>시세 불러오기</h2><select id="code"><option value="005930">삼성전자</option><option value="000660">SK하이닉스</option><option value="005380">현대차</option><option value="105560">KB금융</option><option value="035420">NAVER</option><option value="035720">카카오</option></select><div class="buttons" style="margin-top:12px"><button class="primary" id="load">실제 과거 주가 불러오기</button><button id="run" disabled>백테스트 실행</button></div><p id="status" class="muted">종목을 고르고 시세를 불러와 주세요.</p></div>
+<div class="card"><h2>모의 계좌</h2><div class="metrics"><div class="metric"><small>초기 자금</small><b>100,000원</b></div><div class="metric"><small>최종 평가금</small><b id="equity">—</b></div><div class="metric"><small>모의 수익률</small><b id="return">—</b></div><div class="metric"><small>거래 건수</small><b id="count">—</b></div></div><p class="muted">가용 현금 최대 95% 매수 · 손절 -3% · 익절 +5% · 최대 10거래일 보유</p><p id="diagnostics" class="muted"></p></div>
+<div class="card"><h2>거래 내역</h2><div style="overflow-x:auto"><table><thead><tr><th>날짜</th><th>구분</th><th>가격</th><th>수량</th><th>현금</th></tr></thead><tbody id="trades"><tr><td colspan="5">아직 거래가 없습니다.</td></tr></tbody></table></div></div>
+<p class="warn">주의: 과거 데이터 백테스트이며 미래 수익을 예측하지 않습니다. 매매 신호는 전일 종가까지의 데이터로 만들고 다음 거래일 시가로 체결합니다. 수수료·세금·슬리피지는 단순 가정이며, 주가 데이터가 수정주가가 아닐 수 있어 기업행동에 따른 왜곡이 있습니다. 종가 기준 손절·익절 신호이므로 실제 체결 손익은 설정한 비율과 다를 수 있습니다.</p><p class="muted">데이터: aikstockdata.com (일별 확정 시세, 실시간 아님). 규칙 기반이며 머신러닝 AI 모델은 포함하지 않습니다. 새로고침하면 결과가 초기화됩니다.</p>
+</main><script>
+'use strict';
+const $=id=>document.getElementById(id),won=n=>Math.round(n).toLocaleString('ko-KR')+'원';
+const INITIAL=100000,FEE=.0002,TAX=.0018,SLIP=.0005;
+let bars=[],symbol='',loadedMessage='';
+function reset(){for(const id of ['equity','return','count'])$(id).textContent='—';$('diagnostics').textContent='';$('trades').innerHTML='<tr><td colspan="5">아직 거래가 없습니다.</td></tr>';}
+$('code').onchange=()=>{bars=[];symbol='';loadedMessage='';$('run').disabled=true;$('status').textContent='종목을 고르고 시세를 불러와 주세요.';reset();};
+$('load').onclick=async()=>{
+ $('load').disabled=true;$('run').disabled=true;bars=[];reset();$('status').textContent='서버에서 실제 과거 주가를 불러오는 중...';
+ try{
+  const r=await fetch('/api/prices?code='+encodeURIComponent($('code').value),{cache:'no-store'});
+  const d=await r.json();if(!r.ok)throw Error(d.error||'서버 오류');
+  if(!Array.isArray(d.bars))throw Error('잘못된 데이터 형식');
+  const parsed=d.bars.map(b=>({date:String(b.date),open:Number(b.open),high:Number(b.high),low:Number(b.low),close:Number(b.close),volume:Number(b.volume)}));
+  if(parsed.length<35||parsed.some(b=>!/^\d{8}$/.test(b.date)||![b.open,b.high,b.low,b.close,b.volume].every(Number.isFinite)||b.open<=0||b.close<=0))throw Error('주가 데이터가 부족하거나 잘못되었습니다');
+  parsed.sort((a,b)=>a.date.localeCompare(b.date));bars=parsed;symbol=String(d.name||$('code').selectedOptions[0].textContent);
+  loadedMessage=`${symbol} ${bars.length}거래일 수집 완료 · 마지막 데이터 ${bars.at(-1).date} · 실시간 아님`;
+  $('status').textContent=loadedMessage;$('run').disabled=false;
+ }catch(e){$('status').textContent='불러오기 실패: '+e.message;}
+ finally{$('load').disabled=false;}
+};
+$('run').onclick=()=>{
+ if(bars.length<35)return;
+ let cash=INITIAL,qty=0,entry=0,held=0,logs=[],signals=0,unaffordable=0;
+ for(let i=21;i<bars.length;i++){
+  const today=bars[i],prev=bars[i-1];
+  // 전일 종가를 포함하는 이동평균: 당일 시가 체결 시점에 알려진 정보만 사용
+  const avg=n=>bars.slice(i-n,i).reduce((s,b)=>s+b.close,0)/n;
+  const ma5=avg(5),ma20=avg(20);
+  const buySignal=prev.close>ma5&&ma5>ma20;
+  const sellSignal=qty>0&&(prev.close<=entry*.97||prev.close>=entry*1.05||held>=10||prev.close<ma5);
+  if(sellSignal){const price=today.open*(1-SLIP);cash+=qty*price*(1-FEE-TAX);logs.push({date:today.date,side:'매도',price,qty,cash});qty=0;entry=0;held=0;}
+  if(qty===0&&buySignal){signals++;const price=today.open*(1+SLIP);const n=Math.max(0,Math.floor(cash*.95/(price*(1+FEE))));
+   if(n>0){cash-=n*price*(1+FEE);qty=n;entry=price;held=0;logs.push({date:today.date,side:'매수',price,qty:n,cash});}
+   else unaffordable++;
+  }
+  if(qty>0)held++;
+ }
+ const final=bars.at(-1).close,equity=cash+qty*final*(1-FEE-TAX);
+ $('equity').textContent=won(equity);$('return').textContent=((equity/INITIAL-1)*100).toFixed(2)+'%';$('count').textContent=logs.length+'건';
+ $('diagnostics').textContent=`매수 신호 ${signals}회 · 자금 부족 ${unaffordable}회 · 최종 보유 ${qty}주 (매수·매도 각각 1건)`;
+ $('trades').innerHTML=logs.length?logs.slice(-30).reverse().map(x=>`<tr><td>${x.date.replace(/^(\d{4})(\d{2})(\d{2})$/,'$1-$2-$3')}</td><td>${x.side}</td><td>${won(x.price)}</td><td>${x.qty}</td><td>${won(x.cash)}</td></tr>`).join(''):'<tr><td colspan="5">실행된 매매가 없습니다. 위 진단을 확인하세요.</td></tr>';
+ $('status').textContent=loadedMessage+` · ${symbol} 백테스트 완료 (가상 주문만 실행)`;
+};
+</script></body></html>
