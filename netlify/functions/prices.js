@@ -12,7 +12,6 @@ const stocks = {
   "011930": "신성이엔지"
 };
 
-
 export default async function handler(request) {
   const headers = {
     "Content-Type": "application/json; charset=utf-8",
@@ -44,7 +43,6 @@ export default async function handler(request) {
     }
 
     const data = await response.json();
-
     const columns = data.columns;
     const rows = data.rows;
 
@@ -121,3 +119,4 @@ export default async function handler(request) {
 export const config = {
   path: "/api/prices"
 };
+
