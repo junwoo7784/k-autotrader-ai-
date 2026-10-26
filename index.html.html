@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101828"><title>K-AutoTrader AI v1.0</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1220;color:#e9f0fc;font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif}main{max-width:720px;margin:auto;padding:24px 16px 70px}.card{background:#172338;border:1px solid #2d405b;border-radius:17px;padding:18px;margin:14px 0}h1{font-size:24px;margin:0 0 5px}h2{font-size:17px;margin:0 0 14px}small,.muted{color:#a8b7ce}button,select,input{font:inherit;border-radius:10px;padding:12px;border:1px solid #4b6586;background:#243652;color:white}button{cursor:pointer}button.primary{background:#3885ed;border:0;font-weight:700}button:disabled{opacity:.5}.buttons{display:flex;flex-wrap:wrap;gap:9px}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px}.metric{background:#101c2d;border-radius:10px;padding:12px}.metric b{display:block;margin-top:7px;font-size:18px;overflow-wrap:anywhere}table{width:100%;border-collapse:collapse;font-size:12px}td,th{padding:9px 5px;border-bottom:1px solid #314158;text-align:right;white-space:nowrap}td:first-child,th:first-child{text-align:left}#status,#diagnostics{line-height:1.6}.warn{color:#ffd18a}.positive{color:#78e2a2}.negative{color:#ff9b9b}.table-wrap{overflow-x:auto}#chart{width:100%;height:220px;display:block;background:#101c2d;border-radius:10px}.hint{font-size:12px}label{display:block;margin-bottom:8px}.batch-status{line-height:1.6}.risk-high{color:#ff9b9b}.risk-mid{color:#ffd18a}.risk-low{color:#78e2a2}.batch-table th,.batch-table td{padding:10px 8px}.batch-table tr td:first-child{font-weight:600}.subtle{font-size:12px;color:#a8b7ce}
+</style></head><body><main>
+<h1>K-AutoTrader AI <small>v1.0</small></h1><p class="muted">실제 과거 주가 · 규칙 기반 모의매매 · 실제 주문 불가</p>
+<div class="card"><h2>종목과 시세</h2><label for="code">종목 선택</label><select id="code"><option value="005930">삼성전자</option><option value="000660">SK하이닉스</option><option value="005380">현대차</option><option value="105560">KB금융</option><option value="035420">NAVER</option><option value="035720">카카오</option><option value="028670">팬오션</option><option value="088350">한화생명</option><option value="011930">신성이엔지</option></select><p class="muted hint">전략 선택 (동일 데이터로 비교)</p><select id="strategy"><option value="base">기존 v0.8 전략</option><option value="filter">추세·거래량 필터 전략 (실험)</option></select><div class="buttons" style="margin-top:12px"><button class="primary" id="load">실제 과거 주가 불러오기</button><button id="run" disabled>백테스트 실행</button></div><p id="status" class="muted" aria-live="polite">종목을 고르고 시세를 불러와 주세요.</p></div>
+<div class="card"><h2>전략 비교</h2><p class="muted hint">동일 종목·동일 기간, 동일 수수료 가정. 필터 전략은 60일 이동평균과 전일 거래량 조건을 추가합니다. 두 전략 모두 60일 준비 구간 뒤부터 비교합니다.</p><div class="table-wrap"><table><thead><tr><th>전략</th><th>수익률</th><th>MDD</th><th>승률</th><th>매매</th></tr></thead><tbody id="comparison"><tr><td colspan="5">실행 후 표시됩니다.</td></tr></tbody></table></div></div><div class="card"><h2>9종목 일괄 비교 <small>NEW</small></h2><p class="muted hint">종목별로 각각 10만 원을 가정한 독립 백테스트입니다. 9개 종목에 동시에 10만 원을 배분한 포트폴리오 결과가 아닙니다. 모두 동일한 매매 규칙을 적용하지만 각 종목의 제공 데이터 기간은 다를 수 있습니다.</p><div class="buttons"><button class="primary" id="batch">9종목 전체 비교 실행</button></div><p id="batchStatus" class="muted batch-status" aria-live="polite">실행하면 서버에서 9개 종목의 과거 데이터를 불러옵니다.</p><div class="table-wrap"><table class="batch-table"><thead><tr><th>종목</th><th>전략</th><th>수익률</th><th>MDD</th><th>승률</th><th>체결</th><th>자금부족</th><th>위험도*</th></tr></thead><tbody id="batchRows"><tr><td colspan="8">아직 비교하지 않았습니다.</td></tr></tbody></table></div><p class="muted hint">*위험도는 이 백테스트의 MDD만으로 표시한 단순 분류(낮음: 10% 미만, 보통: 10~25% 미만, 높음: 25% 이상)이며 미래 투자위험이나 종목 안전성을 뜻하지 않습니다. 표의 수익률은 미래 수익을 예측하지 않습니다.</p></div><div class="card"><h2>모의 계좌</h2><div class="metrics"><div class="metric"><small>초기 자금</small><b>100,000원</b></div><div class="metric"><small>최종 평가금</small><b id="equity">—</b></div><div class="metric"><small>모의 수익률</small><b id="return">—</b></div><div class="metric"><small>주문 체결 횟수</small><b id="count">—</b></div><div class="metric"><small>완료 거래 승률</small><b id="winrate">—</b></div><div class="metric"><small>최대 낙폭 (MDD)</small><b id="mdd">—</b></div><div class="metric"><small>실현 손익</small><b id="realized">—</b></div><div class="metric"><small>최종 보유 수량</small><b id="holding">—</b></div></div><p class="muted hint">현금의 최대 95% 매수 · 전일 종가 기준 손절 -3% · 익절 +5% · 최대 10거래일 보유 · 1종목씩 테스트. 전략 비교는 처음 60거래일을 준비 구간으로 사용</p><p id="diagnostics" class="muted"></p></div>
+<div class="card"><h2>자산 추이</h2><canvas id="chart" aria-label="날짜별 모의 계좌 평가금 그래프" role="img"></canvas><p id="chartNote" class="muted hint">백테스트 실행 후 표시됩니다.</p></div>
+<div class="card"><h2>거래 내역</h2><p class="muted hint">매도 행의 손익은 해당 매수부터 매도까지의 수수료·세금·슬리피지를 반영합니다.</p><div class="table-wrap"><table><thead><tr><th>날짜</th><th>구분</th><th>가격</th><th>수량</th><th>현금</th><th>실현 손익</th></tr></thead><tbody id="trades"><tr><td colspan="6">아직 거래가 없습니다.</td></tr></tbody></table></div></div>
+<p class="warn">주의: 과거 주가 기반 가상 결과이며 미래 수익을 보장하지 않습니다. 전일 종가까지 알려진 정보로 신호를 계산하고 다음 거래일 시가에 체결한다고 가정합니다. 실제 장중 손절 주문이 아니며, 갭 상승·하락으로 목표 비율과 다른 가격에 체결될 수 있습니다.</p><p class="muted hint">비교 결과는 같은 데이터에 전략을 맞춘 시험이며, 다른 기간·종목에서 재검증해야 합니다. 필터가 더 좋다는 보장은 없습니다. 가정 비용: 매수·매도 수수료 각 0.02%, 매도세 0.18%, 매수·매도 슬리피지 각 0.05%. 실제 적용 비용과 다를 수 있습니다. 데이터: aikstockdata.com (일별 확정 시세, 실시간 아님). 수정주가·액면분할·배당·거래정지 등 기업행동이 충분히 반영되지 않으면 결과가 크게 왜곡될 수 있습니다. 머신러닝 AI 모델은 포함하지 않습니다.</p>
+</main><script>
+'use strict';
+const $=id=>document.getElementById(id);
+const won=n=>Math.round(n).toLocaleString('ko-KR')+'원';
+const INITIAL=100000,FEE=.0002,TAX=.0018,SLIP=.0005;
+let bars=[],symbol='',loadedMessage='',requestId=0;
+function reset(){for(const id of ['equity','return','count','winrate','mdd','realized','holding'])$(id).textContent='—';$('diagnostics').textContent='';$('comparison').innerHTML='<tr><td colspan="5">실행 후 표시됩니다.</td></tr>';$('trades').innerHTML='<tr><td colspan="6">아직 거래가 없습니다.</td></tr>';$('chartNote').textContent='백테스트 실행 후 표시됩니다.';const c=$('chart');c.getContext('2d').clearRect(0,0,c.width,c.height);}
+$('strategy').onchange=()=>{reset();$('status').textContent=loadedMessage||'종목을 고르고 시세를 불러와 주세요.';};
+$('code').onchange=()=>{requestId++;bars=[];symbol='';loadedMessage='';$('run').disabled=true;$('load').disabled=false;$('status').textContent='종목을 고르고 시세를 불러와 주세요.';reset();};
+$('load').onclick=async()=>{
+ const id=++requestId,code=$('code').value;
+ $('load').disabled=true;$('run').disabled=true;bars=[];reset();$('status').textContent='서버에서 실제 과거 주가를 불러오는 중...';
+ try{
+  const r=await fetch('/api/prices?code='+encodeURIComponent(code),{cache:'no-store'});
+  const d=await r.json();if(id!==requestId)return;if(!r.ok)throw Error(d.error||'서버 오류');
+  if(!Array.isArray(d.bars))throw Error('잘못된 데이터 형식');
+  const parsed=d.bars.map(b=>({date:String(b.date),open:Number(b.open),high:Number(b.high),low:Number(b.low),close:Number(b.close),volume:Number(b.volume)}));
+  if(parsed.length<80||parsed.some(b=>!/^[0-9]{8}$/.test(b.date)||![b.open,b.high,b.low,b.close,b.volume].every(Number.isFinite)||b.open<=0||b.high<=0||b.low<=0||b.close<=0||b.volume<0||b.low>Math.min(b.open,b.close)||b.high<Math.max(b.open,b.close)))throw Error('주가 데이터가 부족하거나 잘못되었습니다');
+  parsed.sort((a,b)=>a.date.localeCompare(b.date));if(parsed.some((b,i)=>i&&b.date===parsed[i-1].date))throw Error('날짜가 중복된 데이터입니다');
+  bars=parsed;symbol=String(d.name||$('code').selectedOptions[0].textContent);
+  loadedMessage=`${symbol} ${bars.length}거래일 수집 완료 · 마지막 데이터 ${bars.at(-1).date} · 실시간 아님`;
+  $('status').textContent=loadedMessage;$('run').disabled=false;
+ }catch(e){if(id===requestId)$('status').textContent='불러오기 실패: '+e.message;}
+ finally{if(id===requestId)$('load').disabled=false;}
+};
+function drawChart(series){
+ const canvas=$('chart'),rect=canvas.getBoundingClientRect(),w=Math.max(200,Math.round(rect.width)),h=220,dpr=window.devicePixelRatio||1;
+ canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+ const pad={left:58,right:14,top:18,bottom:27},min=Math.min(...series.map(x=>x.equity)),max=Math.max(...series.map(x=>x.equity));
+ const lo=Math.min(min,INITIAL),hi=Math.max(max,INITIAL),spread=Math.max(hi-lo,1),bottom=lo-spread*.08,top=hi+spread*.08;
+ const x=i=>pad.left+(w-pad.left-pad.right)*i/Math.max(1,series.length-1),y=v=>pad.top+(h-pad.top-pad.bottom)*(top-v)/(top-bottom);
+ ctx.font='11px sans-serif';ctx.fillStyle='#a8b7ce';ctx.strokeStyle='#344860';ctx.lineWidth=1;
+ for(let i=0;i<=4;i++){const v=bottom+(top-bottom)*i/4,py=y(v);ctx.beginPath();ctx.moveTo(pad.left,py);ctx.lineTo(w-pad.right,py);ctx.stroke();ctx.fillText(Math.round(v/1000)+'천',6,py+4);}
+ ctx.strokeStyle='#7fa4ff';ctx.lineWidth=2;ctx.beginPath();series.forEach((p,i)=>i?ctx.lineTo(x(i),y(p.equity)):ctx.moveTo(x(i),y(p.equity)));ctx.stroke();
+ ctx.fillStyle='#a8b7ce';ctx.fillText(series[0].date.slice(0,4)+'-'+series[0].date.slice(4,6),pad.left,h-8);ctx.textAlign='right';ctx.fillText(series.at(-1).date.slice(0,4)+'-'+series.at(-1).date.slice(4,6),w-pad.right,h-8);ctx.textAlign='left';
+}
+function simulate(mode){
+ let cash=INITIAL,qty=0,entry=0,entryCost=0,held=0,logs=[],signals=0,unaffordable=0,closed=0,wins=0,realized=0,peak=INITIAL,mdd=0;
+ const series=[];
+ for(let i=60;i<bars.length;i++){
+  const today=bars[i],prev=bars[i-1];
+  const avg=n=>bars.slice(i-n,i).reduce((sum,b)=>sum+b.close,0)/n;
+  const ma5=avg(5),ma20=avg(20),ma60=avg(60);
+  const vol20=bars.slice(i-20,i).reduce((sum,b)=>sum+b.volume,0)/20;
+  const basic=prev.close>ma5&&ma5>ma20;
+  // 추가 필터는 모두 전일까지 알려진 자료만 사용. 거래량 기준은 전일 거래량 >= 최근 20일 평균.
+  const buySignal=basic&&(mode==='base'||(prev.close>ma60&&ma20>ma60&&prev.volume>=vol20));
+  const sellSignal=qty>0&&(prev.close<=entry*.97||prev.close>=entry*1.05||held>=10||prev.close<ma5);
+  if(sellSignal){
+   const price=today.open*(1-SLIP),proceeds=qty*price*(1-FEE-TAX),pnl=proceeds-entryCost;
+   cash+=proceeds;realized+=pnl;closed++;if(pnl>0)wins++;
+   logs.push({date:today.date,side:'매도',price,qty,cash,pnl});qty=0;entry=0;entryCost=0;held=0;
+  }
+  // 당일 시가에 매도한 뒤 같은 시가에 재매수하는 것도 허용하는 기존 규칙 유지.
+  if(qty===0&&buySignal){
+   signals++;const price=today.open*(1+SLIP),n=Math.max(0,Math.floor(cash*.95/(price*(1+FEE))));
+   if(n>0){const cost=n*price*(1+FEE);cash-=cost;qty=n;entry=price;entryCost=cost;held=0;logs.push({date:today.date,side:'매수',price,qty:n,cash,pnl:null});}
+   else unaffordable++;
+  }
+  if(qty>0)held++;
+  const equity=cash+qty*today.close*(1-SLIP)*(1-FEE-TAX);
+  if(!Number.isFinite(equity)||cash<-.01||qty<0)throw Error('계좌 계산 오류');
+  series.push({date:today.date,equity});peak=Math.max(peak,equity);mdd=Math.max(mdd,(peak-equity)/peak);
+ }
+ const equity=series.at(-1).equity;
+ const balance=cash+qty*bars.at(-1).close*(1-SLIP)*(1-FEE-TAX);
+ if(Math.abs(equity-balance)>.01||Math.abs((equity-INITIAL)-(realized+(qty?equity-cash-entryCost:0)))>.02)throw Error('손익 정산 검증 실패');
+ return {equity,returnPct:(equity/INITIAL-1)*100,mdd:mdd*100,wins,closed,realized,qty,logs,signals,unaffordable,series};
+}
+const STOCKS=[['005930','삼성전자'],['000660','SK하이닉스'],['005380','현대차'],['105560','KB금융'],['035420','NAVER'],['035720','카카오'],['028670','팬오션'],['088350','한화생명'],['011930','신성이엔지']];
+function parseBars(raw){
+ if(!Array.isArray(raw)||raw.length<80)throw Error('데이터 80일 미만');
+ const out=raw.map(b=>({date:String(b.date),open:Number(b.open),high:Number(b.high),low:Number(b.low),close:Number(b.close),volume:Number(b.volume)}));
+ if(out.some(b=>!/^[0-9]{8}$/.test(b.date)||![b.open,b.high,b.low,b.close,b.volume].every(Number.isFinite)||b.open<=0||b.high<=0||b.low<=0||b.close<=0||b.volume<0||b.low>Math.min(b.open,b.close)||b.high<Math.max(b.open,b.close)))throw Error('잘못된 주가 데이터');
+ out.sort((a,b)=>a.date.localeCompare(b.date));
+ if(out.some((b,i)=>i>0&&b.date===out[i-1].date))throw Error('날짜 중복');
+ return out;
+}
+// simulate() 함수가 기존 전역 bars를 참조하므로 호출 전후 원래 데이터를 복구합니다.
+function simulateFor(data,mode){const previous=bars;try{bars=data;return simulate(mode);}finally{bars=previous;}}
+function riskTag(mdd){return mdd>=25?['높음','risk-high']:mdd>=10?['보통','risk-mid']:['낮음','risk-low'];}
+function batchCell(text,cls=''){const td=document.createElement('td');td.textContent=text;if(cls)td.className=cls;return td;}
+function addBatchRow(name,mode,result,error){
+ const tr=document.createElement('tr');tr.appendChild(batchCell(name));tr.appendChild(batchCell(mode));
+ if(error){const td=batchCell('불러오기 실패: '+error);td.colSpan=6;tr.appendChild(td);}
+ else{const [risk,cls]=riskTag(result.mdd);const rate=result.closed?(100*result.wins/result.closed).toFixed(1)+'%':'—';
+ tr.appendChild(batchCell((result.returnPct>=0?'+':'')+result.returnPct.toFixed(2)+'%',result.returnPct>=0?'positive':'negative'));
+ tr.appendChild(batchCell(result.mdd.toFixed(2)+'%'));tr.appendChild(batchCell(rate));tr.appendChild(batchCell(result.logs.length+'건'));tr.appendChild(batchCell(result.unaffordable+'회'));tr.appendChild(batchCell(risk,cls));}
+ $('batchRows').appendChild(tr);
+}
+$('batch').onclick=async()=>{
+ const button=$('batch');button.disabled=true;$('batchRows').replaceChildren();
+ let completed=0,success=0,fail=0;
+ $('batchStatus').textContent='9개 종목 데이터를 불러오는 중...';
+ // 순차 호출로 API에 과도한 동시 요청을 보내지 않습니다.
+ for(const [code,name] of STOCKS){
+  $('batchStatus').textContent=`진행 중 ${completed+1}/9 · ${name}`;
+  try{
+   const response=await fetch('/api/prices?code='+encodeURIComponent(code),{cache:'no-store'});
+   if(!response.ok)throw Error('HTTP '+response.status);
+   const json=await response.json();
+   if(String(json.code)!==code)throw Error('종목코드 불일치');
+   const data=parseBars(json.bars);
+   for(const mode of ['base','filter'])addBatchRow(name,mode==='base'?'기존':'필터',simulateFor(data,mode),null);
+   success++;
+  }catch(e){addBatchRow(name,'—',null,e.message||'알 수 없는 오류');fail++;}
+  completed++;
+ }
+ $('batchStatus').textContent=`전체 비교 완료 · 성공 ${success}종목 · 실패 ${fail}종목 · 종목별 독립 시드 100,000원 · 가상 결과`;
+ button.disabled=false;
+};
+$('run').onclick=()=>{
+ if(bars.length<80)return;
+ try{
+ const base=simulate('base'),filtered=simulate('filter');
+ const fmt=n=>(n>=0?'+':'')+n.toFixed(2)+'%';
+ $('comparison').innerHTML=[['기존',base],['필터',filtered]].map(([name,r])=>`<tr><td>${name}</td><td class="${r.returnPct>=0?'positive':'negative'}">${fmt(r.returnPct)}</td><td>${r.mdd.toFixed(2)}%</td><td>${r.closed?(100*r.wins/r.closed).toFixed(1)+'%':'—'}</td><td>${r.logs.length}건</td></tr>`).join('');
+ const r=$('strategy').value==='filter'?filtered:base;
+ $('equity').textContent=won(r.equity);$('return').textContent=fmt(r.returnPct);$('count').textContent=r.logs.length+'건';
+ $('winrate').textContent=r.closed?((r.wins/r.closed)*100).toFixed(1)+'% ('+r.wins+'/'+r.closed+')':'— (완료 거래 없음)';
+ $('mdd').textContent=r.mdd.toFixed(2)+'%';$('realized').textContent=won(r.realized);$('holding').textContent=r.qty+'주';
+ $('diagnostics').textContent=`매수 신호 ${r.signals}회 · 자금 부족 ${r.unaffordable}회 · 매수 ${r.logs.filter(x=>x.side==='매수').length}건 · 매도 ${r.closed}건 · 미실현 손익 ${won(r.equity-INITIAL-r.realized)} (최종 보유 평가 포함)`;
+ $('trades').innerHTML=r.logs.length?r.logs.slice(-40).reverse().map(x=>`<tr><td>${x.date.replace(/^(\d{4})(\d{2})(\d{2})$/,'$1-$2-$3')}</td><td>${x.side}</td><td>${won(x.price)}</td><td>${x.qty}</td><td>${won(x.cash)}</td><td class="${x.pnl===null?'':x.pnl>=0?'positive':'negative'}">${x.pnl===null?'—':won(x.pnl)}</td></tr>`).join(''):'<tr><td colspan="6">실행된 매매가 없습니다.</td></tr>';
+ drawChart(r.series);$('chartNote').textContent=`${r.series.length}거래일의 일별 청산가치 추정 · 시작 ${won(r.series[0].equity)} / 마지막 ${won(r.equity)}`;
+ $('status').textContent=loadedMessage+' · 두 전략 백테스트 완료 (가상 주문만 실행)';
+ }catch(e){$('status').textContent='백테스트 실패: '+e.message;}
+};
+</script></body></html>
